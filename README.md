@@ -122,3 +122,6 @@ mklink /J
 - Для папок используется `junction`, а не обычный ярлык `.lnk`.
 - Сетевые пути для `junction` не подходят.
 - Если внутри выбранной папки уже есть вложенная перенесённая папка, перенос родителя блокируется.
+
+<img width="886" height="683" alt="image" src="https://github.com/user-attachments/assets/f13bb907-e1ec-4bd0-9bd9-d793b58d28f5" />
+
