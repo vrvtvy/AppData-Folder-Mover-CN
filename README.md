@@ -1,4 +1,4 @@
-# AppData 文件夹移动工具
+# AppData 文件夹移动工具（原项目Ideshon/AppData-Folder-Mover，此为汉化版。）
 
 该程序将选定的文件夹从 `%USERPROFILE%\AppData` 移动到指定位置，并在原路径创建 NTFS junction 链接。
 
@@ -123,4 +123,4 @@ mklink /J
 - `junction` 不支持网络路径。
 - 如果选定文件夹内已存在嵌套的已移动文件夹，父文件夹的移动将被阻止。
 
-<img width="886" height="683" alt="image" src="https://github.com/user-attachments/assets/f13bb907-e1ec-4bd0-9bd9-d793b58d28f5" />
+<img width="1110" height="855" alt="afmcn" src="https://github.com/user-attachments/assets/5e5bd032-9018-4648-8209-3ec696bcc3e5" />
