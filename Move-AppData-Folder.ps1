@@ -1,6 +1,6 @@
 ﻿# Move-AppData-Folder.ps1
-# GUI-программа для переноса папки из AppData на другой диск и создания NTFS junction-ссылки.
-# Запуск: powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File ".\Move-AppData-Folder.ps1"
+# GUI程序：将 AppData 中的文件夹迁移到其他磁盘并创建 NTFS junction 链接。
+# 启动方式: powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File ".\Move-AppData-Folder.ps1"
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -200,11 +200,11 @@ function Get-SubfolderSizeRows([string]$RootRaw, [scriptblock]$GuiLog = $null) {
     $root = Normalize-Path $RootRaw
 
     if ([string]::IsNullOrWhiteSpace($root) -or !(Test-Path -LiteralPath $root -PathType Container)) {
-        throw "Папка для сортировки не найдена: $root"
+        throw "排序文件夹未找到: $root"
     }
 
-    if ($GuiLog) { & $GuiLog "Считаю размеры подпапок: $root" }
-    Write-DetailLog "Считаю размеры подпапок: $root"
+    if ($GuiLog) { & $GuiLog "正在计算子文件夹大小: $root" }
+    Write-DetailLog "正在计算子文件夹大小: $root"
 
     $rows = New-Object System.Collections.Generic.List[object]
     $dirs = @(Get-ChildItem -LiteralPath $root -Force -Directory -ErrorAction Stop)
@@ -214,16 +214,16 @@ function Get-SubfolderSizeRows([string]$RootRaw, [scriptblock]$GuiLog = $null) {
     foreach ($dir in $dirs) {
         $index += 1
         if ($GuiLog) { & $GuiLog "[$index/$totalDirs] $($dir.Name)" }
-        Write-DetailLog "Размер [$index/$totalDirs]: $($dir.FullName)"
+        Write-DetailLog "大小 [$index/$totalDirs]: $($dir.FullName)"
 
         $isLink = (($dir.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)
         $target = ""
         if ($isLink) { $target = Get-ReparsePointTarget $dir.FullName }
 
         $sizeInfo = Get-DirectorySizeBytes $dir.FullName
-        $typeText = "папка"
-        if ($isLink) { $typeText = "ссылка/junction" }
-        elseif ($sizeInfo.SkippedLinks -gt 0) { $typeText = "папка, внутри есть ссылки: $($sizeInfo.SkippedLinks)" }
+        $typeText = "文件夹"
+        if ($isLink) { $typeText = "链接/junction" }
+        elseif ($sizeInfo.SkippedLinks -gt 0) { $typeText = "文件夹, 内含链接: $($sizeInfo.SkippedLinks)" }
 
         $rows.Add([PSCustomObject]@{
             Name         = $dir.Name
@@ -469,14 +469,14 @@ function Split-ArrayIntoChunks([object[]]$Items, [int]$ChunkSize) {
 function Get-LockingProcessesForFolder([string]$FolderRaw, [scriptblock]$GuiLog = $null) {
     $folder = Normalize-Path $FolderRaw
 
-    if ($GuiLog) { & $GuiLog "Проверяю, какие приложения держат файлы в папке..." }
-    Write-DetailLog "Проверка блокирующих процессов: $folder"
+    if ($GuiLog) { & $GuiLog "正在检查哪些应用程序占用了文件夹中的文件..." }
+    Write-DetailLog "正在检查锁定进程: $folder"
 
     Ensure-RestartManagerLoaded
 
     $paths = @(Get-LockCheckPaths $folder 5000)
-    if ($GuiLog) { & $GuiLog "Проверено путей для занятости: $($paths.Count)" }
-    Write-DetailLog "Проверено путей для занятости: $($paths.Count)"
+    if ($GuiLog) { & $GuiLog "已检查占用路径数: $($paths.Count)" }
+    Write-DetailLog "已检查占用路径数: $($paths.Count)"
 
     if ($paths.Count -eq 0) {
         return @()
@@ -494,7 +494,7 @@ function Get-LockingProcessesForFolder([string]$FolderRaw, [scriptblock]$GuiLog 
                 }
             }
         } catch {
-            if ($GuiLog) { & $GuiLog "ПРЕДУПРЕЖДЕНИЕ: не удалось проверить часть файлов через Restart Manager: $($_.Exception.Message)" }
+            if ($GuiLog) { & $GuiLog "警告: 部分文件无法通过 Restart Manager 检查: $($_.Exception.Message)" }
             Write-DetailLog "Restart Manager error: $($_.Exception.Message)"
         }
     }
@@ -531,7 +531,7 @@ function Format-LockingProcessesText($Processes, [int]$MaxLines = 12) {
     }
 
     if (@($Processes).Count -gt $MaxLines) {
-        $lines += "...ещё $(@($Processes).Count - $MaxLines)"
+        $lines += "...还有 $(@($Processes).Count - $MaxLines) 个"
     }
 
     return ($lines -join "`r`n")
@@ -539,13 +539,13 @@ function Format-LockingProcessesText($Processes, [int]$MaxLines = 12) {
 
 function Log-LockingProcesses($Processes, [scriptblock]$GuiLog) {
     if ($null -eq $Processes -or @($Processes).Count -eq 0) {
-        & $GuiLog "Блокирующих приложений не найдено."
-        Write-DetailLog "Блокирующих приложений не найдено."
+        & $GuiLog "未发现占用文件的应用程序。"
+        Write-DetailLog "未发现占用文件的应用程序。"
         return
     }
 
-    & $GuiLog "Найдены приложения, которые могут мешать переносу:"
-    Write-DetailLog "Найдены приложения, которые могут мешать переносу:"
+    & $GuiLog "发现可能阻碍迁移的应用程序:"
+    Write-DetailLog "发现可能阻碍迁移的应用程序:"
 
     foreach ($p in @($Processes)) {
         $line = Get-ProcessDisplayLine $p
@@ -562,16 +562,16 @@ function Close-LockingProcessesGracefully($Processes, [scriptblock]$GuiLog) {
             $line = Get-ProcessDisplayLine $p
 
             if ($p.MainWindowHandle -ne [IntPtr]::Zero) {
-                & $GuiLog "Отправляю команду закрытия: $line"
-                Write-DetailLog "Отправляю команду закрытия: $line"
+                & $GuiLog "正在发送关闭命令: $line"
+                Write-DetailLog "正在发送关闭命令: $line"
                 [void]$p.CloseMainWindow()
             } else {
-                & $GuiLog "У процесса нет главного окна для мягкого закрытия: $line"
-                Write-DetailLog "У процесса нет главного окна для мягкого закрытия: $line"
+                & $GuiLog "该进程没有主窗口，无法温和关闭: $line"
+                Write-DetailLog "该进程没有主窗口，无法温和关闭: $line"
             }
         } catch {
-            & $GuiLog "Не удалось отправить закрытие: $($_.Exception.Message)"
-            Write-DetailLog "Не удалось отправить закрытие: $($_.Exception.Message)"
+            & $GuiLog "无法发送关闭命令: $($_.Exception.Message)"
+            Write-DetailLog "无法发送关闭命令: $($_.Exception.Message)"
         }
     }
 
@@ -584,12 +584,12 @@ function Kill-LockingProcesses($Processes, [scriptblock]$GuiLog) {
             if ($p.HasExited) { continue }
 
             $line = Get-ProcessDisplayLine $p
-            & $GuiLog "Принудительно закрываю: $line"
-            Write-DetailLog "Принудительно закрываю: $line"
+            & $GuiLog "正在强制关闭: $line"
+            Write-DetailLog "正在强制关闭: $line"
             Stop-Process -Id $p.Id -Force -ErrorAction Stop
         } catch {
-            & $GuiLog "Не удалось принудительно закрыть процесс: $($_.Exception.Message)"
-            Write-DetailLog "Не удалось принудительно закрыть процесс: $($_.Exception.Message)"
+            & $GuiLog "无法强制关闭进程: $($_.Exception.Message)"
+            Write-DetailLog "无法强制关闭进程: $($_.Exception.Message)"
         }
     }
 
@@ -607,19 +607,19 @@ function Resolve-LockingProcessesBeforeMove([string]$FolderRaw, [scriptblock]$Gu
     $listText = Format-LockingProcessesText $lockers 14
 
     $answer = [System.Windows.Forms.MessageBox]::Show(
-        "Эти приложения держат файлы в выбранной папке и могут помешать переносу:`r`n`r`n$listText`r`n`r`nПопробовать закрыть их автоматически?`r`n`r`nСначала будет отправлена обычная команда закрытия окна. Несохранённые данные в этих приложениях могут быть потеряны.",
-        "Папка используется",
+        "这些应用程序占用了所选文件夹中的文件，可能阻碍迁移：`r`n`r`n$listText`r`n`r`n是否尝试自动关闭它们？`r`n`r`n首先会发送普通的窗口关闭命令。这些应用中未保存的数据可能会丢失。",
+        "文件夹正在使用中",
         [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
         [System.Windows.Forms.MessageBoxIcon]::Warning
     )
 
     if ($answer -eq [System.Windows.Forms.DialogResult]::Cancel) {
-        & $GuiLog "Перенос отменён пользователем."
+        & $GuiLog "迁移已被用户取消。"
         return $false
     }
 
     if ($answer -eq [System.Windows.Forms.DialogResult]::No) {
-        & $GuiLog "Пользователь отказался от автозакрытия. Перенос отменён."
+        & $GuiLog "用户拒绝了自动关闭。迁移已取消。"
         return $false
     }
 
@@ -629,21 +629,21 @@ function Resolve-LockingProcessesBeforeMove([string]$FolderRaw, [scriptblock]$Gu
     Log-LockingProcesses $lockersAfterClose $GuiLog
 
     if ($lockersAfterClose.Count -eq 0) {
-        & $GuiLog "После мягкого закрытия блокировок не найдено."
+        & $GuiLog "温和关闭后未发现占用。"
         return $true
     }
 
     $listText2 = Format-LockingProcessesText $lockersAfterClose 14
 
     $killAnswer = [System.Windows.Forms.MessageBox]::Show(
-        "Некоторые процессы всё ещё держат файлы:`r`n`r`n$listText2`r`n`r`nЗакрыть их принудительно?`r`n`r`nЭто может привести к потере несохранённых данных.",
-        "Процессы всё ещё мешают",
+        "部分进程仍然占用文件：`r`n`r`n$listText2`r`n`r`n是否强制关闭？`r`n`r`n这可能导致未保存的数据丢失。",
+        "进程仍然占用中",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Warning
     )
 
     if ($killAnswer -ne [System.Windows.Forms.DialogResult]::Yes) {
-        & $GuiLog "Пользователь отказался от принудительного закрытия. Перенос отменён."
+        & $GuiLog "用户拒绝了强制关闭。迁移已取消。"
         return $false
     }
 
@@ -653,13 +653,13 @@ function Resolve-LockingProcessesBeforeMove([string]$FolderRaw, [scriptblock]$Gu
     Log-LockingProcesses $lockersAfterKill $GuiLog
 
     if ($lockersAfterKill.Count -eq 0) {
-        & $GuiLog "После принудительного закрытия блокировок не найдено."
+        & $GuiLog "强制关闭后未发现占用。"
         return $true
     }
 
     [System.Windows.Forms.MessageBox]::Show(
-        "Папка всё ещё используется. Перенос отменён.`r`n`r`nЗакройте приложения вручную или перезагрузите Windows.",
-        "Папка всё ещё занята",
+        "文件夹仍在使用中。迁移已取消。`r`n`r`n请手动关闭应用程序或重启 Windows。",
+        "文件夹仍被占用",
         [System.Windows.Forms.MessageBoxButtons]::OK,
         [System.Windows.Forms.MessageBoxIcon]::Error
     ) | Out-Null
@@ -674,17 +674,17 @@ function Validate-MovePlan([string]$SourceRaw, [string]$TargetRaw) {
     $source = Normalize-Path $SourceRaw
     $target = Normalize-Path $TargetRaw
 
-    if ([string]::IsNullOrWhiteSpace($source)) { $errors.Add("Не указана исходная папка.") }
-    if ([string]::IsNullOrWhiteSpace($target)) { $errors.Add("Не указана новая папка.") }
+    if ([string]::IsNullOrWhiteSpace($source)) { $errors.Add("未指定源文件夹。") }
+    if ([string]::IsNullOrWhiteSpace($target)) { $errors.Add("未指定目标文件夹。") }
 
     if ($errors.Count -eq 0) {
         if (!(Test-Path -LiteralPath $source -PathType Container)) {
-            $errors.Add("Исходная папка не существует: $source")
+            $errors.Add("源文件夹不存在: $source")
         }
 
         $appDataRoot = Get-UserAppDataRoot
         if (!(Test-PathInside $source $appDataRoot)) {
-            $errors.Add("Исходная папка должна быть внутри AppData: Local, Roaming или LocalLow.")
+            $errors.Add("源文件夹必须在 AppData 内: Local、Roaming 或 LocalLow。")
         }
 
         $forbiddenRoots = @(
@@ -696,60 +696,60 @@ function Validate-MovePlan([string]$SourceRaw, [string]$TargetRaw) {
 
         foreach ($root in $forbiddenRoots) {
             if ((Normalize-Path $source).ToLowerInvariant() -eq (Normalize-Path $root).ToLowerInvariant()) {
-                $errors.Add("Нельзя переносить корневую папку AppData/Local/Roaming/LocalLow целиком: $source")
+                $errors.Add("不能整体迁移根目录 AppData/Local/Roaming/LocalLow: $source")
             }
         }
 
         if (Test-Path -LiteralPath $source -PathType Container) {
             try {
                 if (Is-ReparsePoint $source) {
-                    $errors.Add("Исходная папка уже является ссылкой/reparse point. Повторно переносить её нельзя.")
+                    $errors.Add("源文件夹已经是链接/reparse point，无法重复迁移。")
                 }
             } catch {
-                $errors.Add("Не удалось проверить исходную папку: $($_.Exception.Message)")
+                $errors.Add("无法检查源文件夹: $($_.Exception.Message)")
             }
 
             try {
                 $nestedLinks = @(Get-NestedReparsePointDirectories $source 25)
                 if ($nestedLinks.Count -gt 0) {
-                    $errors.Add("Внутри выбранной папки уже есть перенесённые/ссылочные папки. Нельзя безопасно переносить родительскую папку, иначе вложенная ссылка может потеряться при копировании.")
+                    $errors.Add("所选文件夹内已有已迁移/链接的文件夹。无法安全迁移父文件夹，否则嵌套链接可能在复制时丢失。")
                     foreach ($link in $nestedLinks) {
-                        $errors.Add("  вложенная ссылка: $(Get-ReparsePointDisplayLine $link)")
+                        $errors.Add("  嵌套链接: $(Get-ReparsePointDisplayLine $link)")
                     }
                     if ($nestedLinks.Count -ge 25) {
-                        $errors.Add("  показаны первые 25 ссылок; возможно, внутри есть ещё.")
+                        $errors.Add("  显示了前 25 个链接；可能还有更多。")
                     }
                 }
             } catch {
-                $warnings.Add("Не удалось проверить вложенные ссылки/reparse point: $($_.Exception.Message)")
+                $warnings.Add("无法检查嵌套链接/reparse point: $($_.Exception.Message)")
             }
         }
 
         if (Test-Path -LiteralPath $target) {
-            $errors.Add("Новая папка уже существует. Укажите путь, которого ещё нет: $target")
+            $errors.Add("目标文件夹已存在。请指定一个不存在的路径: $target")
         }
 
         $targetParent = Split-Path -Parent $target
         if ([string]::IsNullOrWhiteSpace($targetParent)) {
-            $errors.Add("У новой папки должен быть родительский каталог.")
+            $errors.Add("目标文件夹必须有父目录。")
         }
 
         if (Test-PathInside $target $source) {
-            $errors.Add("Новая папка не может находиться внутри исходной папки.")
+            $errors.Add("目标文件夹不能位于源文件夹内。")
         }
 
         if (Test-PathInside $source $target) {
-            $errors.Add("Исходная папка не может находиться внутри новой папки.")
+            $errors.Add("源文件夹不能位于目标文件夹内。")
         }
 
         if ((Normalize-Path $source).ToLowerInvariant() -eq (Normalize-Path $target).ToLowerInvariant()) {
-            $errors.Add("Исходный и новый путь совпадают.")
+            $errors.Add("源路径和目标路径相同。")
         }
 
         $sourceRoot = [System.IO.Path]::GetPathRoot($source)
         $targetRoot = [System.IO.Path]::GetPathRoot($target)
         if ($sourceRoot -eq $targetRoot) {
-            $warnings.Add("Исходная и новая папка находятся на одном диске. Для безопасного переноса потребуется временно занять место под копию.")
+            $warnings.Add("源文件夹和目标文件夹在同一磁盘上。安全迁移需要临时占用空间用于复制。")
         }
 
         if ($target -match '^[A-Za-z]:\\') {
@@ -757,13 +757,13 @@ function Validate-MovePlan([string]$SourceRaw, [string]$TargetRaw) {
             try {
                 $vol = Get-Volume -DriveLetter $drive -ErrorAction Stop
                 if ($vol.FileSystem -ne "NTFS") {
-                    $warnings.Add("Целевой диск не NTFS ($($vol.FileSystem)). Junction-ссылки работают только на NTFS.")
+                    $warnings.Add("目标磁盘不是 NTFS ($($vol.FileSystem))。Junction 链接仅支持 NTFS。")
                 }
             } catch {
-                $warnings.Add("Не удалось проверить файловую систему целевого диска. Для junction нужен NTFS.")
+                $warnings.Add("无法检查目标磁盘的文件系统。Junction 需要 NTFS。")
             }
         } else {
-            $warnings.Add("Целевой путь не похож на обычный локальный путь вида D:\Folder. Сетевые пути для junction не подходят.")
+            $warnings.Add("目标路径不像普通的本地路径（如 D:\Folder）。网络路径不支持 junction。")
         }
     }
 
@@ -799,7 +799,7 @@ function New-Junction([string]$LinkPath, [string]$TargetPath) {
 }
 
 function Copy-FolderWithRobocopy([string]$From, [string]$To, [string]$DetailLogFile) {
-    Write-DetailLog "Подробный вывод копирования ниже. Если папка большая, следите за этим окном консоли." $DetailLogFile
+    Write-DetailLog "详细输出如下。如果文件夹较大，请关注此控制台窗口。" $DetailLogFile
     Write-DetailLog "Robocopy: $From -> $To" $DetailLogFile
 
     $args = @(
@@ -817,17 +817,23 @@ function Copy-FolderWithRobocopy([string]$From, [string]$To, [string]$DetailLogF
         "/LOG+:$DetailLogFile"
     )
 
-    & robocopy.exe @args
+    $originalEncoding = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+        & robocopy.exe @args
+    } finally {
+        [Console]::OutputEncoding = $originalEncoding
+    }
     $code = $LASTEXITCODE
 
-    Write-DetailLog "Robocopy exit code: $code" $DetailLogFile
+    Write-DetailLog "Robocopy 退出码: $code" $DetailLogFile
 
     if ($code -ge 8) {
-        throw "Robocopy сообщил об ошибке. Код: $code. Подробности в файле: $DetailLogFile"
+        throw "Robocopy 报告错误。代码: $code。详情请查看: $DetailLogFile"
     }
 
     if (!(Test-Path -LiteralPath $To -PathType Container)) {
-        throw "После копирования новая папка не найдена: $To"
+        throw "复制后未找到目标文件夹: $To"
     }
 }
 
@@ -836,24 +842,24 @@ function Remove-FolderAfterSuccessfulMove([string]$Path, [scriptblock]$GuiLog) {
         return
     }
 
-    & $GuiLog "Удаляю временную исходную копию. Для большой папки это может занять время..."
-    Write-DetailLog "Удаляю временную исходную копию: $Path"
+    & $GuiLog "正在删除临时源文件夹副本。对于大文件夹可能需要一些时间..."
+    Write-DetailLog "正在删除临时源文件夹副本: $Path"
 
     try {
         Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
-        Write-DetailLog "Временная копия удалена."
+        Write-DetailLog "临时副本已删除。"
     } catch {
-        & $GuiLog "ПРЕДУПРЕЖДЕНИЕ: ссылку создал, но временную копию удалить не удалось: $Path"
-        & $GuiLog "Её можно удалить вручную после проверки."
-        Write-DetailLog "Не удалось удалить временную копию: $($_.Exception.Message)"
+        & $GuiLog "警告: 链接已创建，但无法删除临时副本: $Path"
+        & $GuiLog "您可以在检查后手动删除它。"
+        Write-DetailLog "无法删除临时副本: $($_.Exception.Message)"
     }
 }
 
 function Move-AppDataFolderAndLink([string]$SourceRaw, [string]$TargetRaw, [scriptblock]$Log) {
     $plan = Validate-MovePlan $SourceRaw $TargetRaw
-    foreach ($e in $plan.Errors) { & $Log "ОШИБКА: $e" }
-    foreach ($w in $plan.Warnings) { & $Log "ПРЕДУПРЕЖДЕНИЕ: $w" }
-    if ($plan.Errors.Count -gt 0) { throw "План содержит ошибки. Перенос отменён." }
+    foreach ($e in $plan.Errors) { & $Log "错误: $e" }
+    foreach ($w in $plan.Warnings) { & $Log "警告: $w" }
+    if ($plan.Errors.Count -gt 0) { throw "计划包含错误。迁移已取消。" }
 
     $source = $plan.Source
     $target = $plan.Target
@@ -865,47 +871,47 @@ function Move-AppDataFolderAndLink([string]$SourceRaw, [string]$TargetRaw, [scri
 
     $script:CurrentDetailedLog = New-DetailedLogFile
 
-    & $Log "Исходная папка: $source"
-    & $Log "Новая папка:    $target"
-    & $Log "Подробный лог:  $script:CurrentDetailedLog"
-    & $Log "Во время большого переноса смотрите окно консоли."
-    & $Log "Временное имя:  $tempPath"
+    & $Log "源文件夹: $source"
+    & $Log "目标文件夹: $target"
+    & $Log "详细日志:  $script:CurrentDetailedLog"
+    & $Log "大文件夹迁移时请关注控制台窗口。"
+    & $Log "临时名称:  $tempPath"
 
     Write-DetailLog "=== AppData Folder Mover ==="
-    Write-DetailLog "Исходная папка: $source"
-    Write-DetailLog "Новая папка:    $target"
-    Write-DetailLog "Временное имя:  $tempPath"
+    Write-DetailLog "源文件夹: $source"
+    Write-DetailLog "目标文件夹: $target"
+    Write-DetailLog "临时名称: $tempPath"
 
     try {
         if (!(Test-Path -LiteralPath $targetParent -PathType Container)) {
-            & $Log "Создаю родительскую папку: $targetParent"
-            Write-DetailLog "Создаю родительскую папку: $targetParent"
+            & $Log "正在创建父目录: $targetParent"
+            Write-DetailLog "正在创建父目录: $targetParent"
             New-Item -ItemType Directory -Path $targetParent -Force -ErrorAction Stop | Out-Null
         }
 
-        & $Log "Переименовываю исходную папку во временную..."
-        Write-DetailLog "Переименовываю исходную папку во временную..."
+        & $Log "正在将源文件夹重命名为临时名称..."
+        Write-DetailLog "正在将源文件夹重命名为临时名称..."
 
         try {
             Rename-Item -LiteralPath $source -NewName (Split-Path -Leaf $tempPath) -ErrorAction Stop
         } catch {
-            & $Log "Не удалось переименовать исходную папку. Вероятно, она занята приложением."
-            Write-DetailLog "Rename failed: $($_.Exception.Message)"
+            & $Log "无法重命名源文件夹。可能被应用程序占用。"
+            Write-DetailLog "重命名失败: $($_.Exception.Message)"
             try {
                 $lockers = @(Get-LockingProcessesForFolder $source $Log)
                 Log-LockingProcesses $lockers $Log
             } catch {
-                & $Log "Не удалось определить мешающее приложение: $($_.Exception.Message)"
+                & $Log "无法确定占用进程: $($_.Exception.Message)"
             }
-            throw "Исходная папка занята или нет прав на переименование: $($_.Exception.Message)"
+            throw "源文件夹被占用或没有重命名权限: $($_.Exception.Message)"
         }
 
         try {
-            & $Log "Копирую данные через robocopy. Подробности выводятся в консоль..."
+            & $Log "正在通过 robocopy 复制数据。详细信息输出到控制台..."
             Copy-FolderWithRobocopy $tempPath $target $script:CurrentDetailedLog
         } catch {
-            & $Log "Копирование не удалось. Возвращаю исходную папку на место..."
-            Write-DetailLog "Копирование не удалось. Пытаюсь вернуть исходную папку на место."
+            & $Log "复制失败。正在恢复源文件夹..."
+            Write-DetailLog "复制失败。正在尝试恢复源文件夹。"
             if (Test-Path -LiteralPath $target) {
                 Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction SilentlyContinue
             }
@@ -915,8 +921,8 @@ function Move-AppDataFolderAndLink([string]$SourceRaw, [string]$TargetRaw, [scri
             throw
         }
 
-        & $Log "Создаю junction-ссылку..."
-        Write-DetailLog "Создаю junction-ссылку: $source -> $target"
+        & $Log "正在创建 junction 链接..."
+        Write-DetailLog "正在创建 junction 链接: $source -> $target"
         $mk = New-Junction $source $target
         if ($mk.Output) {
             & $Log $mk.Output
@@ -924,22 +930,22 @@ function Move-AppDataFolderAndLink([string]$SourceRaw, [string]$TargetRaw, [scri
         }
 
         if ($mk.ExitCode -ne 0 -or !(Test-Path -LiteralPath $source)) {
-            & $Log "Создание ссылки не удалось. Пробую откатить перенос..."
-            Write-DetailLog "Создание ссылки не удалось. Пробую откатить перенос."
+            & $Log "链接创建失败。正在尝试回滚迁移..."
+            Write-DetailLog "链接创建失败。正在尝试回滚迁移。"
             if (Test-Path -LiteralPath $target -PathType Container) {
                 Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction SilentlyContinue
             }
             if (Test-Path -LiteralPath $tempPath -PathType Container) {
                 Rename-Item -LiteralPath $tempPath -NewName $sourceName -ErrorAction SilentlyContinue
             }
-            throw "mklink вернул код $($mk.ExitCode)."
+            throw "mklink 返回代码 $($mk.ExitCode)。"
         }
 
         Remove-FolderAfterSuccessfulMove $tempPath $Log
 
-        & $Log "Готово. Старый путь теперь ведёт в новую папку."
-        & $Log "Проверка: $source -> $target"
-        Write-DetailLog "Готово. Старый путь теперь ведёт в новую папку."
+        & $Log "完成。旧路径现在指向目标文件夹。"
+        & $Log "验证: $source -> $target"
+        Write-DetailLog "完成。旧路径现在指向目标文件夹。"
     } catch {
         throw $_
     }
@@ -959,13 +965,13 @@ $form.Font = $font
 $script:TargetBaseForAutoPath = ""
 
 $lblInfo = New-Object System.Windows.Forms.Label
-$lblInfo.Text = "Переносит выбранную папку из AppData в новое место и создаёт NTFS junction-ссылку на старом пути. Целевой путь строится как: выбранная базовая папка + путь после AppData."
+$lblInfo.Text = "将 AppData 中的文件夹迁移到新位置，并在旧路径创建 NTFS junction 链接。目标路径构建方式：所选基础文件夹 + AppData 之后的路径。"
 $lblInfo.Location = New-Object System.Drawing.Point(12, 12)
 $lblInfo.Size = New-Object System.Drawing.Size(840, 42)
 $form.Controls.Add($lblInfo)
 
 $lblSource = New-Object System.Windows.Forms.Label
-$lblSource.Text = "Исходная папка в AppData:"
+$lblSource.Text = "AppData 中的源文件夹:"
 $lblSource.Location = New-Object System.Drawing.Point(12, 64)
 $lblSource.Size = New-Object System.Drawing.Size(820, 20)
 $form.Controls.Add($lblSource)
@@ -977,14 +983,14 @@ $txtSource.Anchor = "Top,Left,Right"
 $form.Controls.Add($txtSource)
 
 $btnSource = New-Object System.Windows.Forms.Button
-$btnSource.Text = "Выбрать"
+$btnSource.Text = "选择"
 $btnSource.Location = New-Object System.Drawing.Point(755, 84)
 $btnSource.Size = New-Object System.Drawing.Size(95, 28)
 $btnSource.Anchor = "Top,Right"
 $form.Controls.Add($btnSource)
 
 $lblTarget = New-Object System.Windows.Forms.Label
-$lblTarget.Text = "Новая папка. По умолчанию: базовая папка на другом диске + путь исходной папки после AppData:"
+$lblTarget.Text = "目标文件夹。默认: 其他磁盘上的基础文件夹 + 源文件夹在 AppData 之后的路径:"
 $lblTarget.Location = New-Object System.Drawing.Point(12, 122)
 $lblTarget.Size = New-Object System.Drawing.Size(820, 20)
 $form.Controls.Add($lblTarget)
@@ -996,44 +1002,44 @@ $txtTarget.Anchor = "Top,Left,Right"
 $form.Controls.Add($txtTarget)
 
 $btnTarget = New-Object System.Windows.Forms.Button
-$btnTarget.Text = "База"
+$btnTarget.Text = "基础"
 $btnTarget.Location = New-Object System.Drawing.Point(755, 142)
 $btnTarget.Size = New-Object System.Drawing.Size(95, 28)
 $btnTarget.Anchor = "Top,Right"
 $form.Controls.Add($btnTarget)
 
 $lblExample = New-Object System.Windows.Forms.Label
-$lblExample.Text = "Пример: C:\Users\User\AppData\Local\Game\Saved + D:\AppDataMoved => D:\AppDataMoved\Local\Game\Saved"
+$lblExample.Text = "示例: C:\Users\User\AppData\Local\Game\Saved + D:\AppDataMoved => D:\AppDataMoved\Local\Game\Saved"
 $lblExample.Location = New-Object System.Drawing.Point(12, 174)
 $lblExample.Size = New-Object System.Drawing.Size(840, 20)
 $form.Controls.Add($lblExample)
 
 $chkClosed = New-Object System.Windows.Forms.CheckBox
-$chkClosed.Text = "Я закрыл программу/игру, которая использует эту папку"
+$chkClosed.Text = "我已关闭使用该文件夹的程序/游戏"
 $chkClosed.Location = New-Object System.Drawing.Point(12, 200)
 $chkClosed.Size = New-Object System.Drawing.Size(820, 24)
 $form.Controls.Add($chkClosed)
 
 $btnCheck = New-Object System.Windows.Forms.Button
-$btnCheck.Text = "Проверить"
+$btnCheck.Text = "检查"
 $btnCheck.Location = New-Object System.Drawing.Point(12, 232)
 $btnCheck.Size = New-Object System.Drawing.Size(110, 32)
 $form.Controls.Add($btnCheck)
 
 $btnLocks = New-Object System.Windows.Forms.Button
-$btnLocks.Text = "Занятость"
+$btnLocks.Text = "占用"
 $btnLocks.Location = New-Object System.Drawing.Point(132, 232)
 $btnLocks.Size = New-Object System.Drawing.Size(110, 32)
 $form.Controls.Add($btnLocks)
 
 $btnSizes = New-Object System.Windows.Forms.Button
-$btnSizes.Text = "Размеры"
+$btnSizes.Text = "大小"
 $btnSizes.Location = New-Object System.Drawing.Point(252, 232)
 $btnSizes.Size = New-Object System.Drawing.Size(110, 32)
 $form.Controls.Add($btnSizes)
 
 $btnMove = New-Object System.Windows.Forms.Button
-$btnMove.Text = "Перенести"
+$btnMove.Text = "迁移"
 $btnMove.Location = New-Object System.Drawing.Point(372, 232)
 $btnMove.Size = New-Object System.Drawing.Size(120, 32)
 $form.Controls.Add($btnMove)
@@ -1057,7 +1063,7 @@ $btnOpenLocalLow.Size = New-Object System.Drawing.Size(85, 32)
 $form.Controls.Add($btnOpenLocalLow)
 
 $btnOpenLogs = New-Object System.Windows.Forms.Button
-$btnOpenLogs.Text = "Логи"
+$btnOpenLogs.Text = "日志"
 $btnOpenLogs.Location = New-Object System.Drawing.Point(777, 232)
 $btnOpenLogs.Size = New-Object System.Drawing.Size(75, 32)
 $form.Controls.Add($btnOpenLogs)
@@ -1103,7 +1109,7 @@ function Refresh-TargetFromBaseIfPossible {
 }
 
 $btnSource.Add_Click({
-    $selected = & $pickFolder "Выберите папку внутри AppData" $env:LOCALAPPDATA
+    $selected = & $pickFolder "请选择 AppData 中的文件夹" $env:LOCALAPPDATA
     if ($selected) {
         $txtSource.Text = $selected
         Refresh-TargetFromBaseIfPossible
@@ -1126,7 +1132,7 @@ $btnTarget.Add_Click({
         } catch {}
     }
 
-    $selected = & $pickFolder "Выберите базовую папку на другом диске. К ней будет добавлен путь после AppData." $initial
+    $selected = & $pickFolder "请选择其他磁盘上的基础文件夹。将自动添加 AppData 之后的路径。" $initial
     if ($selected) {
         $script:TargetBaseForAutoPath = Normalize-Path $selected
         if ($txtSource.Text) {
@@ -1143,29 +1149,29 @@ $btnCheck.Add_Click({
         if ($txtSource.Text) {
             $relative = Get-RelativePathAfterAppData $txtSource.Text
             if ($relative) {
-                & $log "Путь после AppData: $relative"
+                & $log "AppData 之后的路径: $relative"
             }
         }
 
         $plan = Validate-MovePlan $txtSource.Text $txtTarget.Text
-        & $log "Проверка плана:"
-        & $log "Исходная папка: $($plan.Source)"
-        & $log "Новая папка:    $($plan.Target)"
-        foreach ($w in $plan.Warnings) { & $log "ПРЕДУПРЕЖДЕНИЕ: $w" }
-        foreach ($e in $plan.Errors) { & $log "ОШИБКА: $e" }
+        & $log "检查计划:"
+        & $log "源文件夹: $($plan.Source)"
+        & $log "目标文件夹: $($plan.Target)"
+        foreach ($w in $plan.Warnings) { & $log "警告: $w" }
+        foreach ($e in $plan.Errors) { & $log "错误: $e" }
         if ($plan.Errors.Count -eq 0) {
-            & $log "Ошибок не найдено. Можно переносить."
+            & $log "未发现错误。可以开始迁移。"
         }
     } catch {
-        & $log "ОШИБКА: $($_.Exception.Message)"
+        & $log "错误: $($_.Exception.Message)"
     }
 })
 
 $btnLocks.Add_Click({
     if ([string]::IsNullOrWhiteSpace($txtSource.Text) -or !(Test-Path -LiteralPath (Normalize-Path $txtSource.Text) -PathType Container)) {
         [System.Windows.Forms.MessageBox]::Show(
-            "Сначала выберите существующую исходную папку.",
-            "Нет исходной папки",
+            "请先选择一个存在的源文件夹。",
+            "未选择源文件夹",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Warning
         ) | Out-Null
@@ -1180,21 +1186,21 @@ $btnLocks.Add_Click({
         if ($lockers.Count -gt 0) {
             $listText = Format-LockingProcessesText $lockers 16
             [System.Windows.Forms.MessageBox]::Show(
-                "Найдены приложения, которые держат файлы:`r`n`r`n$listText",
-                "Папка используется",
+                "发现占用文件的应用程序:`r`n`r`n$listText",
+                "文件夹正在使用中",
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Information
             ) | Out-Null
         } else {
             [System.Windows.Forms.MessageBox]::Show(
-                "Блокирующих приложений не найдено.",
-                "Папка свободна",
+                "未发现占用文件的应用程序。",
+                "文件夹空闲",
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Information
             ) | Out-Null
         }
     } catch {
-        & $log "ОШИБКА проверки занятости: $($_.Exception.Message)"
+        & $log "占用检查错误: $($_.Exception.Message)"
     } finally {
         $btnLocks.Enabled = $true
     }
@@ -1203,14 +1209,14 @@ $btnLocks.Add_Click({
 
 function Show-SizeSelectionWindow([object[]]$Rows, [string]$RootPath) {
     $sizeForm = New-Object System.Windows.Forms.Form
-    $sizeForm.Text = "Размеры подпапок: $RootPath"
+    $sizeForm.Text = "子文件夹大小: $RootPath"
     $sizeForm.Size = New-Object System.Drawing.Size(980, 620)
     $sizeForm.StartPosition = "CenterParent"
     $sizeForm.MinimumSize = New-Object System.Drawing.Size(850, 480)
     $sizeForm.Font = $font
 
     $lbl = New-Object System.Windows.Forms.Label
-    $lbl.Text = "Сортировка по размеру по убыванию. Двойной щелчок или кнопка выбора подставит папку как исходную. Ссылки/junction не раскрываются и не считаются как реальный размер цели."
+    $lbl.Text = "按大小降序排列。双击或点击选择按钮可将文件夹设为源文件夹。链接/junction 不会展开，不计算目标的实际大小。"
     $lbl.Location = New-Object System.Drawing.Point(12, 12)
     $lbl.Size = New-Object System.Drawing.Size(940, 36)
     $sizeForm.Controls.Add($lbl)
@@ -1223,11 +1229,11 @@ function Show-SizeSelectionWindow([object[]]$Rows, [string]$RootPath) {
     $list.FullRowSelect = $true
     $list.GridLines = $true
     $list.HideSelection = $false
-    [void]$list.Columns.Add("Размер", 100)
-    [void]$list.Columns.Add("Имя", 190)
-    [void]$list.Columns.Add("Тип", 210)
-    [void]$list.Columns.Add("Файлы", 80)
-    [void]$list.Columns.Add("Путь", 330)
+    [void]$list.Columns.Add("大小", 100)
+    [void]$list.Columns.Add("名称", 190)
+    [void]$list.Columns.Add("类型", 210)
+    [void]$list.Columns.Add("文件", 80)
+    [void]$list.Columns.Add("路径", 330)
 
     foreach ($row in $Rows) {
         $item = New-Object System.Windows.Forms.ListViewItem($row.SizeText)
@@ -1241,21 +1247,21 @@ function Show-SizeSelectionWindow([object[]]$Rows, [string]$RootPath) {
     $sizeForm.Controls.Add($list)
 
     $btnUse = New-Object System.Windows.Forms.Button
-    $btnUse.Text = "Выбрать как исходную"
+    $btnUse.Text = "选择为源文件夹"
     $btnUse.Location = New-Object System.Drawing.Point(12, 522)
     $btnUse.Size = New-Object System.Drawing.Size(170, 32)
     $btnUse.Anchor = "Bottom,Left"
     $sizeForm.Controls.Add($btnUse)
 
     $btnOpen = New-Object System.Windows.Forms.Button
-    $btnOpen.Text = "Открыть"
+    $btnOpen.Text = "打开"
     $btnOpen.Location = New-Object System.Drawing.Point(194, 522)
     $btnOpen.Size = New-Object System.Drawing.Size(100, 32)
     $btnOpen.Anchor = "Bottom,Left"
     $sizeForm.Controls.Add($btnOpen)
 
     $btnClose = New-Object System.Windows.Forms.Button
-    $btnClose.Text = "Закрыть"
+    $btnClose.Text = "关闭"
     $btnClose.Location = New-Object System.Drawing.Point(852, 522)
     $btnClose.Size = New-Object System.Drawing.Size(100, 32)
     $btnClose.Anchor = "Bottom,Right"
@@ -1296,26 +1302,26 @@ $btnSizes.Add_Click({
     $btnSizes.Enabled = $false
     try {
         $txtLog.Clear()
-        & $log "Сортирую подпапки по размеру. Для больших папок это может занять время."
+        & $log "正在按大小排序子文件夹。对于大文件夹可能需要一些时间。"
         $rows = @(Get-SubfolderSizeRows $root $log)
 
         if ($rows.Count -eq 0) {
             [System.Windows.Forms.MessageBox]::Show(
-                "В выбранной папке нет подпапок для сортировки.",
-                "Нет подпапок",
+                "所选文件夹中没有可排序的子文件夹。",
+                "无子文件夹",
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Information
             ) | Out-Null
             return
         }
 
-        & $log "Готово. Найдено подпапок: $($rows.Count). Открываю окно сортировки."
+        & $log "完成。找到子文件夹: $($rows.Count)。正在打开排序窗口。"
         Show-SizeSelectionWindow $rows $root
     } catch {
-        & $log "ОШИБКА сортировки по размеру: $($_.Exception.Message)"
+        & $log "大小排序错误: $($_.Exception.Message)"
         [System.Windows.Forms.MessageBox]::Show(
-            "Не удалось отсортировать папки по размеру:`r`n$($_.Exception.Message)",
-            "Ошибка",
+            "无法按大小排序文件夹:`r`n$($_.Exception.Message)",
+            "错误",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         ) | Out-Null
@@ -1327,8 +1333,8 @@ $btnSizes.Add_Click({
 $btnMove.Add_Click({
     if (-not $chkClosed.Checked) {
         [System.Windows.Forms.MessageBox]::Show(
-            "Сначала закройте программу/игру, которая использует эту папку, и поставьте галочку.",
-            "Папка может быть занята",
+            "请先关闭使用该文件夹的程序/游戏，并勾选复选框。",
+            "文件夹可能被占用",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Warning
         ) | Out-Null
@@ -1336,8 +1342,8 @@ $btnMove.Add_Click({
     }
 
     $confirm = [System.Windows.Forms.MessageBox]::Show(
-        "Будет выполнено:`r`n`r`n1. Перед переносом программа проверит, какие приложения держат файлы.`r`n2. Если такие приложения найдены, будет предложено закрыть их автоматически.`r`n3. Исходная папка будет временно переименована.`r`n4. Данные будут скопированы через robocopy с подробным выводом в консоль.`r`n5. На старом пути будет создана junction-ссылка.`r`n6. Временная исходная копия будет удалена после успешного создания ссылки.`r`n`r`nПродолжить?",
-        "Подтверждение переноса",
+        "将执行以下操作：`r`n`r`n1. 迁移前程序将检查哪些应用程序占用了文件。`r`n2. 如果发现占用程序，将提示自动关闭。`r`n3. 源文件夹将被临时重命名。`r`n4. 数据将通过 robocopy 复制，详细信息输出到控制台。`r`n5. 在旧路径创建 junction 链接。`r`n6. 链接创建成功后删除临时源副本。`r`n`r`n是否继续？",
+        "确认迁移",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Question
     )
@@ -1351,9 +1357,9 @@ $btnMove.Add_Click({
 
     try {
         $plan = Validate-MovePlan $txtSource.Text $txtTarget.Text
-        foreach ($e in $plan.Errors) { & $log "ОШИБКА: $e" }
-        foreach ($w in $plan.Warnings) { & $log "ПРЕДУПРЕЖДЕНИЕ: $w" }
-        if ($plan.Errors.Count -gt 0) { throw "План содержит ошибки. Перенос отменён." }
+        foreach ($e in $plan.Errors) { & $log "错误: $e" }
+        foreach ($w in $plan.Warnings) { & $log "警告: $w" }
+        if ($plan.Errors.Count -gt 0) { throw "计划包含错误。迁移已取消。" }
 
         $canContinue = Resolve-LockingProcessesBeforeMove $txtSource.Text $log $form
         if (-not $canContinue) {
@@ -1363,16 +1369,16 @@ $btnMove.Add_Click({
         Move-AppDataFolderAndLink $txtSource.Text $txtTarget.Text $log
 
         [System.Windows.Forms.MessageBox]::Show(
-            "Перенос завершён. Старый путь теперь является ссылкой на новую папку.",
-            "Готово",
+            "迁移完成。旧路径现在是指向目标文件夹的链接。",
+            "完成",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Information
         ) | Out-Null
     } catch {
-        & $log "ОШИБКА: $($_.Exception.Message)"
+        & $log "错误: $($_.Exception.Message)"
         [System.Windows.Forms.MessageBox]::Show(
-            "Перенос не завершён:`r`n$($_.Exception.Message)`r`n`r`nСмотрите лог в окне и подробный лог в папке detailed_logs.",
-            "Ошибка",
+            "迁移未完成:`r`n$($_.Exception.Message)`r`n`r`n请查看窗口日志和 detailed_logs 文件夹中的详细日志。",
+            "错误",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         ) | Out-Null
